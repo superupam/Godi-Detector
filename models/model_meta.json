@@ -1,0 +1,8 @@
+{
+  "trained_at": "20261123_002806",
+  "accuracy": 97.8386,
+  "dataset_size": 39095,
+  "train_size": 31276,
+  "test_size": 7819,
+  "versioned_file": "models/godi_news_classifier_20261123_002806.pkl"
+}

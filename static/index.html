@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Godi Detector - AI News & Fact Verification</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Navigation Header -->
+        <header class="navbar">
+            <div class="nav-brand">
+                <span class="brand-icon">🛡️</span>
+                <div>
+                    <h1 class="brand-title">Godi Detector</h1>
+                    <p class="brand-sub">Dual-Engine AI Verification System</p>
+                </div>
+            </div>
+            <div class="nav-status">
+                <span class="status-indicator"></span>
+                <span id="api-status-text">FastAPI Engine Online</span>
+            </div>
+        </header>
+
+        <!-- Main Hero Section -->
+        <main class="content-wrapper">
+            <section class="hero-section">
+                <h2 class="hero-tagline">"Don't just consume information. <span class="highlight">Verify it.</span>"</h2>
+                <p class="hero-desc">Cross-referencing machine learning linguistic style analysis with live knowledge retrieval from Wikipedia and Google News archives.</p>
+            </section>
+
+            <!-- Input Card -->
+            <section class="verifier-card">
+                <!-- Input Mode Tabs -->
+                <div class="input-tabs">
+                    <button class="tab-btn active" id="tab-text">📝 Direct Text / Headline</button>
+                    <button class="tab-btn" id="tab-url">🔗 News Article Link (URL)</button>
+                </div>
+
+                <div class="sample-chips-label">Quick Test Samples:</div>
+                <div class="sample-chips">
+                    <button class="chip" data-sample="real">📌 Real Political News</button>
+                    <button class="chip" data-sample="fake">🚨 Sensational Clickbait</button>
+                    <button class="chip" data-sample="messi">⚽ Real Sports Event (Messi 2022)</button>
+                    <button class="chip" data-sample="ronaldo">❌ Factually False (Ronaldo 2022)</button>
+                    <button class="chip" data-sample="bbc-url">🔗 Sample BBC News Link</button>
+                </div>
+
+                <!-- Text Mode View -->
+                <div id="view-text" class="input-view">
+                    <label for="news-input" class="input-label">Enter news headline, claim, or article excerpt:</label>
+                    <textarea id="news-input" placeholder="Type or paste any news text here to verify..."></textarea>
+                </div>
+
+                <!-- URL Mode View -->
+                <div id="view-url" class="input-view" style="display: none;">
+                    <label for="url-input" class="input-label">Paste a news article link (e.g. BBC, The Hindu, NDTV, Times of India):</label>
+                    <div class="url-input-wrapper">
+                        <input type="url" id="url-input" placeholder="https://www.bbc.com/news/..." class="text-input">
+                        <button id="btn-scrape" class="btn-secondary">Extract Article</button>
+                    </div>
+                    <!-- Live Article Preview Card -->
+                    <div id="scraped-preview-card" class="scraped-preview-card" style="display: none;">
+                        <div class="preview-badge-row">
+                            <span class="badge-domain" id="preview-domain">bbc.com</span>
+                            <span class="preview-meta" id="preview-wordcount">0 words extracted</span>
+                        </div>
+                        <h4 id="preview-title" class="preview-title">Article Title</h4>
+                        <p id="preview-snippet" class="preview-snippet">Article content snippet...</p>
+                    </div>
+                </div>
+
+                <div class="input-meta">
+                    <span id="char-count">0 characters</span>
+                    <label class="toggle-container">
+                        <input type="checkbox" id="toggle-fact-check" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Enable Live Fact Checking (Wikipedia & News)</span>
+                    </label>
+                </div>
+
+                <button id="btn-verify" class="btn-primary">
+                    <span class="btn-text">🔍 Verify News Content</span>
+                    <span class="spinner" style="display: none;"></span>
+                </button>
+            </section>
+
+            <!-- Loading Spinner State -->
+            <div id="loading-box" class="loading-box" style="display: none;">
+                <div class="pulsing-radar"></div>
+                <p class="loading-title">Analyzing Claim with Dual Engines...</p>
+                <p class="loading-sub" id="loading-sub-text">Evaluating vocabulary tone &amp; cross-referencing live databases</p>
+            </div>
+
+            <!-- Results Section -->
+            <section id="results-section" class="results-section" style="display: none;">
+                <!-- Scraped Article Source Banner (if URL used) -->
+                <div id="scraped-source-banner" class="scraped-source-banner" style="display: none;">
+                    <span class="source-icon">🌐</span>
+                    <div>
+                        <strong>Verified from Web Link:</strong> <span id="scraped-banner-domain">domain.com</span> &mdash; <em id="scraped-banner-title">Article Title</em>
+                    </div>
+                </div>
+
+                <!-- Main Verdict Banner -->
+                <div id="verdict-banner" class="verdict-banner">
+                    <div class="verdict-icon" id="verdict-icon">✅</div>
+                    <div class="verdict-info">
+                        <div class="verdict-header">
+                            <h3 id="verdict-title" class="verdict-title">VERIFIED REAL NEWS</h3>
+                            <span id="verdict-badge" class="verdict-badge">94.0% Confidence</span>
+                        </div>
+                        <p id="verdict-explanation" class="verdict-explanation">Corroborated by independent authoritative sources.</p>
+                    </div>
+                </div>
+
+                <!-- Dual Engine Comparison Grid -->
+                <div class="engines-grid">
+                    <!-- Engine 1 Card -->
+                    <div class="engine-card">
+                        <div class="engine-header">
+                            <span class="engine-tag">Engine 1</span>
+                            <h4>Linguistic Style Analysis (ML Model)</h4>
+                        </div>
+                        <p class="engine-desc">Detects sensationalism, informal phrasing, and clickbait tone patterns.</p>
+
+                        <div class="metric-row">
+                            <div class="metric-label">
+                                <span>Formal Newsroom Tone</span>
+                                <strong id="style-real-percent">0%</strong>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div id="style-real-bar" class="progress-bar-fill fill-real" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="metric-row">
+                            <div class="metric-label">
+                                <span>Sensational / Clickbait Tone</span>
+                                <strong id="style-fake-percent">0%</strong>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div id="style-fake-bar" class="progress-bar-fill fill-fake" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="signals-group">
+                            <div class="signals-label">Detected Linguistic Indicators:</div>
+                            <div id="signals-container" class="signals-container">
+                                <!-- Tags injected via JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Engine 2 Card -->
+                    <div class="engine-card">
+                        <div class="engine-header">
+                            <span class="engine-tag tag-engine2">Engine 2</span>
+                            <h4>Real-Time Fact Retrieval (Live Knowledge)</h4>
+                        </div>
+                        <p class="engine-desc">Cross-references claim facts with Wikipedia and Google News archives.</p>
+
+                        <div class="fact-status-row">
+                            <span class="fact-label">Corroboration Status:</span>
+                            <span id="fact-status-badge" class="badge-status">CORROBORATED</span>
+                        </div>
+
+                        <div class="fact-detail-box">
+                            <div class="fact-field">
+                                <span class="field-title">Top Source:</span>
+                                <span id="fact-source" class="field-value">Wikipedia</span>
+                            </div>
+                            <div class="fact-field">
+                                <span class="field-title">Evidence Match:</span>
+                                <span id="fact-match" class="field-value">0% verified</span>
+                            </div>
+                            <div class="fact-field snippet-field">
+                                <span class="field-title">Evidence Snippet:</span>
+                                <blockquote id="fact-snippet" class="quote-snippet">
+                                    "Extracted quote appears here..."
+                                </blockquote>
+                            </div>
+                            <div id="fact-link-container">
+                                <a id="fact-url" href="#" target="_blank" rel="noopener noreferrer" class="source-link">
+                                    🔗 View Authoritative Source Article
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Godi Detector &bull; Designed &amp; Developed by <strong>Rupam</strong></p>
+            <p class="footer-sub">Trained on 39,095 deduplicated articles &bull; FastAPI Backend &bull; Web Scraper &bull; Wikipedia API</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

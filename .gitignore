@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Environment & secrets — NEVER commit these
+.env
+
+# Trained model files (large binary files)
+# Keep model_meta.json but exclude the .pkl binaries
+models/*.pkl
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Data — raw CSVs and the generated dataset are large binaries
+# (data/processed/news_dataset.csv is ~196 MB). Regenerate with prepare_data.py.
+data/raw/
+data/processed/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
