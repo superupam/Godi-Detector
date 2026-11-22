@@ -44,14 +44,28 @@ Godi Detector/
 ## ⚙️ Setup
 
 ### 1. Create & activate virtual environment
-```bash
-python -m venv venv
 
-# Windows
-venv\Scripts\activate
+> **Requires Python 3.12 or 3.13.** Python 3.14 does not work on machines with
+> Windows Smart App Control enabled: it blocks `pydantic_core`'s compiled
+> extension (`_pydantic_core.cp314-win_amd64.pyd`). Use 3.13 unless you have
+> disabled Smart App Control.
+
+```bash
+# Windows — pick an installed 3.13 interpreter
+py -3.13 -m venv .venv
 
 # macOS / Linux
-source venv/bin/activate
+python3.13 -m venv .venv
+```
+
+Activate it (the folder is `.venv`, not `venv`):
+
+```bash
+# Windows
+.venv\Scripts\activate
+
+# macOS / Linux
+source .venv/bin/activate
 ```
 
 ### 2. Install dependencies
@@ -74,6 +88,12 @@ copy .env.example .env
 uvicorn api:app --reload --host 0.0.0.0 --port 8000
 ```
 Then open http://localhost:8000 in your browser.
+
+> **First start takes about a minute.** The trained model is a ~10 MB scikit-learn
+> pipeline and `joblib.load` needs roughly 60 seconds to unpickle it on Windows
+> (longer with Smart App Control enabled). The server is not ready until the log
+> says `Model loaded successfully!` / `Application startup complete.` — requests
+> sent before that hang. This cost is paid once per server start, not per request.
 
 ### Option B — Streamlit UI
 ```bash
