@@ -89,11 +89,14 @@ uvicorn api:app --reload --host 0.0.0.0 --port 8000
 ```
 Then open http://localhost:8000 in your browser.
 
-> **First start takes about a minute.** The trained model is a ~10 MB scikit-learn
-> pipeline and `joblib.load` needs roughly 60 seconds to unpickle it on Windows
-> (longer with Smart App Control enabled). The server is not ready until the log
-> says `Model loaded successfully!` / `Application startup complete.` — requests
-> sent before that hang. This cost is paid once per server start, not per request.
+> **First start after a fresh install can take up to a minute.** The very first
+> `joblib.load` lets Windows scan the newly installed scikit-learn/numpy binaries
+> (slower with Smart App Control enabled). Once that has happened, the model
+> unpickles in about 1.5 s and the server is ready in roughly 5-10 s. Wait for
+> `Model loaded successfully!` / `Application startup complete.` in the log before
+> sending requests. Accuracy and dataset size shown by the API and the Streamlit
+> sidebar are read from `models/model_meta.json`, so they follow the last training
+> run automatically.
 
 ### Option B — Streamlit UI
 ```bash

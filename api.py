@@ -23,9 +23,11 @@ except ImportError:
 # Import the Fact Checking Engine
 from fact_checker import verify_claim_evidence
 from scraper import is_valid_url, scrape_news_article
-from utils import explain_style
+from utils import explain_style, load_model_meta
 
 MODEL_PATH = os.getenv("MODEL_PATH", "models/godi_news_classifier.pkl")
+# Training stats live next to the model file, written by train_model.py
+MODEL_META_PATH = os.path.join(os.path.dirname(MODEL_PATH), "model_meta.json")
 
 # ==========================================
 # Load ML model at startup using FastAPI lifespan
@@ -81,13 +83,15 @@ class ScrapeRequest(BaseModel):
 @app.get("/api/status")
 def get_status():
     """Health check and model metadata."""
+    meta = load_model_meta(MODEL_META_PATH)
+    accuracy = meta.get("accuracy")
     return {
         "status": "online",
         "model_loaded": classifier_model is not None,
         "engine_1": "TF-IDF + Logistic Regression",
         "engine_2": "Real-Time Wikipedia & Google News Retrieval",
-        "dataset_articles": 39095,
-        "model_accuracy": 97.84
+        "dataset_articles": meta.get("dataset_size"),
+        "model_accuracy": round(float(accuracy), 2) if accuracy is not None else None,
     }
 
 

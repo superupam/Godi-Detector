@@ -3,6 +3,29 @@
 # Shared Utilities — imported by api.py, app.py, predict.py
 # ==========================================
 
+import json
+
+
+def load_model_meta(path: str = "models/model_meta.json") -> dict:
+    """
+    Read the training metadata written by train_model.py.
+
+    Returns an empty dict when the file is missing or unreadable, so callers
+    can fall back to "unknown" instead of showing stale hardcoded numbers.
+
+    Args:
+        path: Location of model_meta.json
+
+    Returns:
+        dict with keys such as accuracy, dataset_size, train_size, test_size
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return meta if isinstance(meta, dict) else {}
+
 
 def explain_style(model, text: str, top_k: int = 5):
     """

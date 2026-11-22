@@ -10,7 +10,10 @@ import streamlit as st
 
 # Import the Fact Checking Engine
 from fact_checker import verify_claim_evidence
-from utils import explain_style
+from utils import explain_style, load_model_meta
+
+MODEL_PATH = "models/godi_news_classifier.pkl"
+MODEL_META_PATH = "models/model_meta.json"
 
 # Set Page Configuration
 st.set_page_config(
@@ -73,10 +76,9 @@ st.markdown("""
 @st.cache_resource
 def load_model():
     """Load and cache the trained ML pipeline."""
-    model_path = "models/godi_news_classifier.pkl"
-    if not os.path.exists(model_path):
+    if not os.path.exists(MODEL_PATH):
         return None
-    return joblib.load(model_path)
+    return joblib.load(MODEL_PATH)
 
 
 
@@ -93,11 +95,16 @@ with st.sidebar:
 
     st.divider()
     st.subheader("📊 Model Information")
-    st.markdown("""
+    _meta = load_model_meta(MODEL_META_PATH)
+    _size = _meta.get("dataset_size")
+    _acc = _meta.get("accuracy")
+    _size_str = f"{_size:,} sanitized & deduplicated articles" if isinstance(_size, int) else "unknown (run `train_model.py`)"
+    _acc_str = f"{_acc:.2f}%" if isinstance(_acc, (int, float)) else "unknown"
+    st.markdown(f"""
     * **Engine 1:** TF-IDF + Logistic Regression (Style & Tone)
     * **Engine 2:** Real-Time Knowledge Retrieval (Wikipedia & News RSS)
-    * **Dataset:** 39,095 sanitized & deduplicated articles
-    * **Model Accuracy:** 97.84%
+    * **Dataset:** {_size_str}
+    * **Model Accuracy:** {_acc_str}
     """)
     st.caption("Developed by Rupam | Godi Detector Project")
 
