@@ -4,8 +4,11 @@
 # Extracts article headline, body, and metadata
 # ==========================================
 
+import ipaddress
 import re
+import socket
 import urllib.parse
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -20,6 +23,172 @@ BROWSER_HEADERS = {
     "DNT": "1",
     "Upgrade-Insecure-Requests": "1"
 }
+
+
+# --- SSRF protection -------------------------------------------------------
+# /api/scrape fetches a URL chosen by the caller, so the destination has to be
+# checked before every request. Without this the endpoint can be pointed at
+# localhost, private networks, or cloud metadata services on 169.254.169.254.
+
+MAX_REDIRECTS = 5
+
+BLOCKED_URL_MESSAGE = (
+    "That URL points to a local, private, or internal address. "
+    "Only public news sites can be scraped."
+)
+
+# Internal hostnames that would otherwise look like ordinary names.
+BLOCKED_HOSTNAMES = {
+    "localhost",
+    "metadata",
+    "metadata.google.internal",
+    "metadata.goog",
+    "instance-data",
+    "instance-data.ec2.internal",
+}
+BLOCKED_HOST_SUFFIXES = (".localhost", ".local", ".internal", ".home.arpa")
+
+
+class UnsafeURLError(ValueError):
+    """Raised when a URL resolves to a destination we refuse to fetch."""
+
+
+# IPv6 forms that are routable but mean "reach this IPv4 address", so the
+# address inside them is the one that has to be checked.
+NAT64_PREFIX = ipaddress.ip_network("64:ff9b::/96")
+SIX_TO_FOUR_PREFIX = ipaddress.ip_network("2002::/16")
+
+
+def _embedded_ipv4(ip):
+    """Return the IPv4 address carried inside an IPv6 wrapper, if any."""
+    if ip.version != 6:
+        return None
+    if ip.ipv4_mapped is not None:
+        return ip.ipv4_mapped
+    if ip in NAT64_PREFIX:
+        return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    if ip in SIX_TO_FOUR_PREFIX:
+        return ipaddress.IPv4Address((int(ip) >> 80) & 0xFFFFFFFF)
+    return None
+
+
+def _is_public_ip(ip) -> bool:
+    """True only for globally reachable unicast addresses."""
+    while (inner := _embedded_ipv4(ip)) is not None:
+        ip = inner
+    # is_global rules out reserved and test ranges too, but not 100.64/10
+    # (carrier-grade NAT), so the explicit checks stay as a backstop.
+    return ip.is_global and not (
+        ip.is_private        # 10/8, 172.16/12, 192.168/16, fc00::/7
+        or ip.is_loopback
+        or ip.is_link_local  # 169.254/16 — cloud metadata lives here
+        or ip.is_multicast
+        or ip.is_unspecified
+    )
+
+
+def _host_literal_ip(host: str):
+    """
+    Parse the host as an IP address when it is one, including the shorthand
+    forms a resolver accepts but ipaddress does not: 2130706433, 0x7f.1,
+    0177.0.0.1 all mean 127.0.0.1.
+    """
+    try:
+        return ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    try:
+        return ipaddress.ip_address(socket.inet_aton(host))
+    except (OSError, ValueError):
+        return None
+
+
+def validate_public_url(url: str):
+    """
+    Check that a URL may be fetched.
+
+    Returns:
+        None when the destination is a public http(s) host, otherwise a
+        human-readable reason explaining why it was refused.
+    """
+    try:
+        parsed = urllib.parse.urlsplit(url.strip())
+    except ValueError:
+        return "Invalid URL. Please provide a link starting with http:// or https://"
+
+    if parsed.scheme not in ("http", "https"):
+        return "Only http:// and https:// links can be scraped."
+
+    host = (parsed.hostname or "").strip().rstrip(".").lower()
+    if host.startswith("[") and host.endswith("]"):
+        host = host[1:-1]
+    if not host:
+        return "Invalid URL. Please provide a link starting with http:// or https://"
+
+    if host in BLOCKED_HOSTNAMES or host.endswith(tuple(BLOCKED_HOST_SUFFIXES)):
+        return BLOCKED_URL_MESSAGE
+
+    try:
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError:
+        return "Invalid port in URL."
+
+    literal = _host_literal_ip(host)
+    if literal is not None:
+        return None if _is_public_ip(literal) else BLOCKED_URL_MESSAGE
+
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except (OSError, UnicodeError):
+        return f"Could not resolve the host '{host}'."
+
+    addresses = {info[4][0].split("%")[0] for info in infos}
+    if not addresses:
+        return f"Could not resolve the host '{host}'."
+
+    for address in addresses:
+        try:
+            resolved = ipaddress.ip_address(address)
+        except ValueError:
+            return f"Could not verify the host '{host}'."
+        # Reject if *any* answer is internal, so mixed A/AAAA replies cannot
+        # be used to slip past the check.
+        if not _is_public_ip(resolved):
+            return BLOCKED_URL_MESSAGE
+
+    return None
+
+
+def _safe_get(url: str, timeout: float):
+    """
+    GET a URL after validating it and every redirect target.
+
+    requests follows redirects internally, which would let a public URL
+    redirect to a private one, so each hop is requested explicitly.
+    """
+    current = url
+    for _ in range(MAX_REDIRECTS + 1):
+        reason = validate_public_url(current)
+        if reason:
+            raise UnsafeURLError(reason)
+
+        response = requests.get(
+            current,
+            headers=BROWSER_HEADERS,
+            timeout=timeout,
+            allow_redirects=False,
+        )
+
+        if response.is_redirect:
+            location = response.headers.get("Location")
+            if not location:
+                return response
+            current = urllib.parse.urljoin(current, location)
+            continue
+
+        return response
+
+    raise UnsafeURLError("Too many redirects.")
 
 
 def is_valid_url(url_string: str) -> bool:
@@ -64,7 +233,7 @@ def scrape_news_article(url: str):
     domain = urllib.parse.urlparse(url).netloc.replace("www.", "")
 
     try:
-        response = requests.get(url, headers=BROWSER_HEADERS, timeout=8)
+        response = _safe_get(url, timeout=8)
         if response.status_code != 200:
             return {
                 "success": False,
@@ -148,6 +317,17 @@ def scrape_news_article(url: str):
             "error": None
         }
 
+    except UnsafeURLError as e:
+        return {
+            "success": False,
+            "url": url,
+            "domain": domain,
+            "title": "",
+            "content": "",
+            "preview": "",
+            "word_count": 0,
+            "error": str(e)
+        }
     except requests.exceptions.Timeout:
         return {
             "success": False,

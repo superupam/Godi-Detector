@@ -307,4 +307,28 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsSection.style.display = "block";
         resultsSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
+
+    // Footer stats: read the real corpus size and accuracy from /api/status so a
+    // retrain never leaves a stale number sitting in the page.
+    const footerDataset = document.getElementById("footer-dataset");
+    if (footerDataset) {
+        fetch("/api/status")
+            .then(response => (response.ok ? response.json() : null))
+            .then(status => {
+                if (!status) return;
+                const parts = [];
+                if (Number.isFinite(status.dataset_articles)) {
+                    parts.push(`Trained on ${status.dataset_articles.toLocaleString()} deduplicated articles`);
+                }
+                if (Number.isFinite(status.model_accuracy)) {
+                    parts.push(`${status.model_accuracy}% test accuracy`);
+                }
+                if (parts.length) {
+                    footerDataset.textContent = parts.join(" \u2022 ");
+                }
+            })
+            .catch(() => {
+                // API unreachable: keep the neutral default wording.
+            });
+    }
 });
