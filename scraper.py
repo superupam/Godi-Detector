@@ -32,6 +32,10 @@ BROWSER_HEADERS = {
 
 MAX_REDIRECTS = 5
 
+# A news article needs a few hundred KB at most. Stop reading after 5 MB so a
+# hostile or accidental giant response cannot exhaust the server's memory.
+MAX_RESPONSE_BYTES = 5 * 1024 * 1024
+
 BLOCKED_URL_MESSAGE = (
     "That URL points to a local, private, or internal address. "
     "Only public news sites can be scraped."
@@ -159,12 +163,16 @@ def validate_public_url(url: str):
     return None
 
 
-def _safe_get(url: str, timeout: float):
+def _safe_get(url: str, timeout: float, max_bytes: int = MAX_RESPONSE_BYTES):
     """
     GET a URL after validating it and every redirect target.
 
     requests follows redirects internally, which would let a public URL
     redirect to a private one, so each hop is requested explicitly.
+
+    Returns:
+        (response, page_text) — the body is decoded and truncated to max_bytes.
+        page_text is empty for non-200 responses, whose body is never needed.
     """
     current = url
     for _ in range(MAX_REDIRECTS + 1):
@@ -177,16 +185,42 @@ def _safe_get(url: str, timeout: float):
             headers=BROWSER_HEADERS,
             timeout=timeout,
             allow_redirects=False,
+            stream=True,
         )
 
         if response.is_redirect:
             location = response.headers.get("Location")
+            response.close()
             if not location:
-                return response
+                return response, ""
             current = urllib.parse.urljoin(current, location)
             continue
 
-        return response
+        if response.status_code != 200:
+            response.close()
+            return response, ""
+
+        chunks = []
+        read = 0
+        try:
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                if not chunk:
+                    continue
+                chunks.append(chunk)
+                read += len(chunk)
+                if read >= max_bytes:
+                    break
+        finally:
+            response.close()
+
+        raw = b"".join(chunks)[:max_bytes]
+        encoding = response.encoding or "utf-8"
+        try:
+            page_text = raw.decode(encoding, errors="replace")
+        except LookupError:
+            # Unknown charset in the header; UTF-8 with replacement is close enough.
+            page_text = raw.decode("utf-8", errors="replace")
+        return response, page_text
 
     raise UnsafeURLError("Too many redirects.")
 
@@ -233,7 +267,7 @@ def scrape_news_article(url: str):
     domain = urllib.parse.urlparse(url).netloc.replace("www.", "")
 
     try:
-        response = _safe_get(url, timeout=8)
+        response, page_text = _safe_get(url, timeout=8)
         if response.status_code != 200:
             return {
                 "success": False,
@@ -246,7 +280,7 @@ def scrape_news_article(url: str):
                 "error": f"Website returned HTTP status {response.status_code}. The site may be blocking automated requests."
             }
 
-        soup = BeautifulSoup(response.text, "html.parser")
+        soup = BeautifulSoup(page_text, "html.parser")
 
         # 1. Extract Article Title
         title = ""

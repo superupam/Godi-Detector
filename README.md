@@ -229,8 +229,9 @@ missing or unreadable.
 }
 ```
 
-- `text` — minimum 3 characters; a headline, excerpt, claim, or `http(s)` URL.
-  A URL is scraped first, then classified from title + body.
+- `text` — 3 to 20,000 characters; a headline, excerpt, claim, or `http(s)` URL.
+  A URL is scraped first, then classified from title + body. Longer input is
+  rejected with `422` rather than vectorised.
 - `check_facts` — default `true`. Set `false` for a fast Engine 1-only pass.
 
 ```bash
@@ -282,12 +283,16 @@ Returns `url`, `domain`, `title`, `content` (first 12 paragraphs), `preview`
 boilerplate and drops paragraphs under 40 characters or containing cookie,
 subscribe or newsletter text.
 
+The body is streamed and truncated at **5 MB**, so a huge or malicious page
+cannot exhaust server memory; the text an article needs sits near the top of the
+document. Non-200 responses are never read.
+
 ### Errors
 
 | Status | When |
 |---|---|
 | `400` | Invalid or unsafe URL, non-200 from the target site, no extractable text, empty text |
-| `422` | Request body failed validation (e.g. `text` shorter than 3 characters) |
+| `422` | Request body failed validation (`text` under 3 or over 20,000 characters, a URL over 2,048 characters) |
 | `500` | `/api/verify` called while no model is loaded — run `train_model.py` |
 
 ---

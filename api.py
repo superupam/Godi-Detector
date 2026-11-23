@@ -29,6 +29,11 @@ MODEL_PATH = os.getenv("MODEL_PATH", "models/godi_news_classifier.pkl")
 # Training stats live next to the model file, written by train_model.py
 MODEL_META_PATH = os.path.join(os.path.dirname(MODEL_PATH), "model_meta.json")
 
+# Upper bound on user-supplied input. The classifier vectorises the whole string,
+# so an unbounded body is a cheap way to make the server allocate a lot of memory.
+MAX_INPUT_CHARS = 20_000
+MAX_URL_CHARS = 2_048
+
 # ==========================================
 # Load ML model at startup using FastAPI lifespan
 # ==========================================
@@ -61,22 +66,33 @@ app = FastAPI(
 )
 
 # CORS — controlled via ALLOWED_ORIGINS in .env
+# allow_credentials must stay False: the app uses no cookies or auth, and a
+# credentialed response is invalid for a wildcard origin, so browsers reject it.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
 class VerifyRequest(BaseModel):
-    text: str = Field(..., min_length=3, description="Headline, news claim, or article URL to verify")
+    text: str = Field(
+        ...,
+        min_length=3,
+        max_length=MAX_INPUT_CHARS,
+        description=f"Headline, news claim, or article URL to verify (max {MAX_INPUT_CHARS:,} characters)",
+    )
     check_facts: bool = Field(default=True, description="Whether to query live Wikipedia/News archives")
 
 
 class ScrapeRequest(BaseModel):
-    url: str = Field(..., description="Web URL of the news article to scrape and extract")
+    url: str = Field(
+        ...,
+        max_length=MAX_URL_CHARS,
+        description="Web URL of the news article to scrape and extract",
+    )
 
 
 
