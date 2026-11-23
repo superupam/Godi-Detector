@@ -47,6 +47,7 @@ debunked even if it is written in formal newsroom prose.
 | `VERIFIED REAL NEWS` | real | Engine 2 corroborated the claim (≥ 88%) |
 | `LIKELY REAL (PARTIALLY CORROBORATED)` | real | Partial evidence and formal tone (real ≥ 60%) |
 | `UNVERIFIED / REQUIRES CAUTION` | warn | Partial evidence but informal tone |
+| `PARTIALLY VERIFIED (BELOW STRICTNESS THRESHOLD)` | warn | Streamlit only: corroborated evidence under the sidebar strictness slider |
 | `LIKELY FAKE NEWS / CLICKBAIT` | fake | No evidence and fake-style probability ≥ 70% |
 | `UNVERIFIED CLAIM (FORMAL JOURNALISTIC TONE)` | warn | No evidence, real ≥ 75% |
 | `AMBIGUOUS / UNVERIFIED` | warn | No evidence, neutral style (50%) |
@@ -66,7 +67,7 @@ Godi Detector/
 ├── predict.py           # Terminal verifier (interactive + one-shot argument)
 ├── fact_checker.py      # Engine 2: Wikipedia + Google News retrieval and scoring
 ├── scraper.py           # News URL scraper + SSRF guard (_safe_get / validate_public_url)
-├── utils.py             # explain_style() and load_model_meta() shared by all front ends
+├── utils.py             # decide_verdict(), explain_style(), load_model_meta() — shared by all front ends
 ├── train_model.py       # Training pipeline → .pkl snapshots + model_meta.json
 ├── prepare_data.py      # Cleaning, leakage removal, deduplication
 ├── explore_data.py      # Quick pandas look at the raw CSVs

@@ -23,7 +23,7 @@ except ImportError:
 # Import the Fact Checking Engine
 from fact_checker import verify_claim_evidence
 from scraper import is_valid_url, scrape_news_article
-from utils import explain_style, load_model_meta
+from utils import decide_verdict, explain_style, load_model_meta
 
 MODEL_PATH = os.getenv("MODEL_PATH", "models/godi_news_classifier.pkl")
 # Training stats live next to the model file, written by train_model.py
@@ -151,56 +151,14 @@ def verify_claim(req: VerifyRequest):
     if req.check_facts:
         fact_result = verify_claim_evidence(text)
 
-    # --- Synthesize Hybrid Verdict ---
-    if fact_result and fact_result["status"] == "CONTRADICTED":
-        verdict = "DEBUNKED / FACTUALLY FALSE"
-        category = "fake"
-        confidence = max(round(fact_result["confidence"] * 100, 1), 96.0)
-        explanation = fact_result["top_snippet"]
-    elif fact_result and fact_result["status"] == "CORROBORATED":
-        verdict = "VERIFIED REAL NEWS"
-        category = "real"
-        confidence = max(round(fact_result["confidence"] * 100, 1), 88.0)
-        explanation = (
-            f"Corroborated by {fact_result['top_source']}. "
-            f"Authoritative public records confirm this claim."
-        )
-    elif fact_result and fact_result["status"] == "PARTIALLY_CORROBORATED":
-        if style_real_prob >= 60.0:
-            verdict = "LIKELY REAL (PARTIALLY CORROBORATED)"
-            category = "real"
-            confidence = 72.0
-        else:
-            verdict = "UNVERIFIED / REQUIRES CAUTION"
-            category = "warn"
-            confidence = 58.0
-        explanation = (
-            f"Related coverage found on {fact_result['top_source']}, "
-            f"but specific claim details are not fully confirmed."
-        )
-    else:
-        # No evidence in knowledge bases
-        if style_fake_prob >= 70.0:
-            verdict = "LIKELY FAKE NEWS / CLICKBAIT"
-            category = "fake"
-            confidence = style_fake_prob
-            explanation = "Sensationalist clickbait style detected and no corroborating evidence found in trusted sources."
-        elif style_real_prob >= 75.0:
-            verdict = "UNVERIFIED CLAIM (FORMAL JOURNALISTIC TONE)"
-            category = "warn"
-            confidence = 65.0
-            explanation = "Written in formal newsroom style, but no official confirmation was found in news archives."
-        else:
-            verdict = "AMBIGUOUS / UNVERIFIED"
-            category = "warn"
-            confidence = 50.0
-            explanation = "No authoritative evidence found and linguistic style is neutral."
+    # --- Synthesize Hybrid Verdict (shared logic in utils.decide_verdict) ---
+    decision = decide_verdict(style_real_prob, style_fake_prob, fact_result)
 
     return {
-        "verdict": verdict,
-        "category": category,
-        "confidence": confidence,
-        "explanation": explanation,
+        "verdict": decision["verdict"],
+        "category": decision["category"],
+        "confidence": decision["confidence"],
+        "explanation": decision["explanation"],
         "scraped_article": scraped_info,
         "engine_1_style": {
             "real_probability": style_real_prob,

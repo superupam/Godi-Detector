@@ -10,7 +10,7 @@ import streamlit as st
 
 # Import the Fact Checking Engine
 from fact_checker import verify_claim_evidence
-from utils import explain_style, load_model_meta
+from utils import decide_verdict, explain_style, load_model_meta
 
 MODEL_PATH = "models/godi_news_classifier.pkl"
 MODEL_META_PATH = "models/model_meta.json"
@@ -162,52 +162,20 @@ if verify_button and user_text.strip():
         if enable_fact_check:
             fact_result = verify_claim_evidence(user_text)
 
-        # Hybrid Decision Logic
-        if fact_result and fact_result["status"] == "CONTRADICTED":
-            verdict_class = "verdict-fake"
-            verdict_title = "DEBUNKED / FACTUALLY FALSE"
-            confidence = max(fact_result["confidence"] * 100, 96.0)
-            summary_msg = fact_result["top_snippet"]
-        elif fact_result and fact_result["status"] == "CORROBORATED":
-            verdict_class = "verdict-real"
-            verdict_title = "VERIFIED REAL NEWS"
-            # Apply strictness: require the fact confidence to clear the threshold
-            raw_conf = fact_result["confidence"] * 100
-            confidence = max(raw_conf, 85.0)
-            if raw_conf >= min_confidence:
-                summary_msg = f"Corroborated by **{fact_result['top_source']}**. Verified facts in authoritative public records confirm this claim."
-            else:
-                # Fact found but doesn't clear the user's threshold → downgrade
-                verdict_class = "verdict-warn"
-                verdict_title = "PARTIALLY VERIFIED (BELOW STRICTNESS THRESHOLD)"
-                confidence = raw_conf
-                summary_msg = f"Evidence found on **{fact_result['top_source']}**, but confidence ({raw_conf:.0f}%) is below your strictness setting of {min_confidence}%."
-        elif fact_result and fact_result["status"] == "PARTIALLY_CORROBORATED":
-            if style_real_prob > 60:
-                verdict_class = "verdict-real"
-                verdict_title = "LIKELY REAL (PARTIALLY CORROBORATED)"
-                confidence = 72.0
-            else:
-                verdict_class = "verdict-warn"
-                verdict_title = "UNVERIFIED / REQUIRES CAUTION"
-                confidence = 58.0
-            summary_msg = f"Related coverage found on **{fact_result['top_source']}**, but specific claim details are not fully confirmed."
-        else:
-            if style_fake_prob >= min_confidence:
-                verdict_class = "verdict-fake"
-                verdict_title = "LIKELY FAKE NEWS / CLICKBAIT"
-                confidence = style_fake_prob
-                summary_msg = "Sensationalist/clickbait style detected and no corroborating evidence found in trusted sources."
-            elif style_real_prob >= min_confidence:
-                verdict_class = "verdict-warn"
-                verdict_title = "UNVERIFIED CLAIM (FORMAL JOURNALISTIC TONE)"
-                confidence = 65.0
-                summary_msg = "Written in formal newsroom style, but no official confirmation was found in news archives."
-            else:
-                verdict_class = "verdict-warn"
-                verdict_title = "AMBIGUOUS / UNVERIFIED"
-                confidence = 50.0
-                summary_msg = "No authoritative evidence found and linguistic style is neutral."
+        # Hybrid Decision Logic (shared with the API and CLI)
+        decision = decide_verdict(
+            style_real_prob,
+            style_fake_prob,
+            fact_result,
+            min_confidence=min_confidence,
+        )
+        verdict_title = decision["verdict"]
+        confidence = decision["confidence"]
+        summary_msg = decision["explanation"]
+        verdict_class = {
+            "real": "verdict-real",
+            "fake": "verdict-fake",
+        }.get(decision["category"], "verdict-warn")
 
     # --- Render Verdict Banner ---
     st.markdown(f"""
