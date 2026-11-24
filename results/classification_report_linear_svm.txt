@@ -1,0 +1,16 @@
+Model: Linear SVM
+Accuracy: 98.68%
+Train time: 0.41s | Predict time: 0.0s
+
+              precision    recall  f1-score   support
+
+   Real News     0.9854    0.9903    0.9879      4239
+   Fake News     0.9885    0.9827    0.9856      3580
+
+    accuracy                         0.9868      7819
+   macro avg     0.9870    0.9865    0.9867      7819
+weighted avg     0.9868    0.9868    0.9868      7819
+
+Confusion matrix (rows = true, cols = predicted):
+[[4198   41]
+ [  62 3518]]

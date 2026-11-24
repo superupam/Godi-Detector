@@ -1,0 +1,82 @@
+{
+  "raw_rows": {
+    "True.csv": 21417,
+    "Fake.csv": 23481
+  },
+  "raw_total": 44898,
+  "raw_missing_values": {
+    "True.csv": {
+      "title": 0,
+      "text": 0,
+      "subject": 0,
+      "date": 0
+    },
+    "Fake.csv": {
+      "title": 0,
+      "text": 0,
+      "subject": 0,
+      "date": 0
+    }
+  },
+  "raw_duplicate_rows": {
+    "True.csv": 206,
+    "Fake.csv": 3
+  },
+  "raw_subjects": {
+    "True.csv": {
+      "politicsNews": 11272,
+      "worldnews": 10145
+    },
+    "Fake.csv": {
+      "News": 9050,
+      "politics": 6841,
+      "left-news": 4459,
+      "Government News": 1570,
+      "US_News": 783,
+      "Middle-east": 778
+    }
+  },
+  "raw_body_words": {
+    "Real": {
+      "mean": 385.64,
+      "median": 359.0,
+      "p90": 775.0,
+      "min": 0,
+      "max": 5172
+    },
+    "Fake": {
+      "mean": 423.2,
+      "median": 363.0,
+      "p90": 709.0,
+      "min": 0,
+      "max": 8135
+    }
+  },
+  "processed_rows": 39095,
+  "processed_class_counts": {
+    "0": 21196,
+    "1": 17899
+  },
+  "processed_duplicate_contents": 0,
+  "processed_content_words": {
+    "Real": {
+      "mean": 391.03,
+      "median": 364.0,
+      "p90": 778.5,
+      "min": 4,
+      "max": 5153
+    },
+    "Fake": {
+      "mean": 425.91,
+      "median": 381.0,
+      "p90": 679.0,
+      "min": 4,
+      "max": 8146
+    }
+  },
+  "figures": [
+    "results/eda_label_distribution.png",
+    "results/eda_article_lengths.png",
+    "results/eda_subjects.png"
+  ]
+}

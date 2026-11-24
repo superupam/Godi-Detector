@@ -1,0 +1,4 @@
+model,accuracy,precision_weighted,recall_weighted,f1_weighted,precision_fake,recall_fake,f1_fake,train_seconds,predict_seconds,brier_score,log_loss
+Linear SVM,0.9868,0.9868,0.9868,0.9868,0.9885,0.9827,0.9856,0.41,0.0,,
+Logistic Regression,0.9784,0.9784,0.9784,0.9784,0.9825,0.9701,0.9762,0.25,0.0,0.0218,0.1049
+Multinomial Naive Bayes,0.9482,0.9484,0.9482,0.9482,0.9351,0.9531,0.944,0.02,0.01,0.0399,0.1541

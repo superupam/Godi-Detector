@@ -1,0 +1,16 @@
+Model: Multinomial Naive Bayes
+Accuracy: 94.82%
+Train time: 0.02s | Predict time: 0.01s
+
+              precision    recall  f1-score   support
+
+   Real News     0.9597    0.9441    0.9518      4239
+   Fake News     0.9351    0.9531    0.9440      3580
+
+    accuracy                         0.9482      7819
+   macro avg     0.9474    0.9486    0.9479      7819
+weighted avg     0.9484    0.9482    0.9482      7819
+
+Confusion matrix (rows = true, cols = predicted):
+[[4002  237]
+ [ 168 3412]]

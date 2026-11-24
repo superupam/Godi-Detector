@@ -101,10 +101,11 @@ def get_status():
     """Health check and model metadata."""
     meta = load_model_meta(MODEL_META_PATH)
     accuracy = meta.get("accuracy")
+    algorithm = meta.get("algorithm") or "Logistic Regression"
     return {
         "status": "online",
         "model_loaded": classifier_model is not None,
-        "engine_1": "TF-IDF + Logistic Regression",
+        "engine_1": f"TF-IDF + {algorithm}",
         "engine_2": "Real-Time Wikipedia & Google News Retrieval",
         "dataset_articles": meta.get("dataset_size"),
         "model_accuracy": round(float(accuracy), 2) if accuracy is not None else None,

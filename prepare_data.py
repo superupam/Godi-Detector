@@ -2,30 +2,32 @@
 # GODI DETECTOR
 # Data Preparation & Sanitization Pipeline
 # ==========================================
+#
+# data/raw/True.csv + data/raw/Fake.csv
+#   -> label leakage removal
+#   -> title + text combined
+#   -> duplicates and stubs dropped
+#   -> data/processed/news_dataset.csv + results/dataset_stats.json
+#
+# Run from the project root:  python prepare_data.py
 
+import json
 import os
 import re
+
 import pandas as pd
 
-# STEP 1: Load both raw datasets
-print("Step 1: Loading raw datasets...")
-real_news = pd.read_csv("data/raw/True.csv")
-fake_news = pd.read_csv("data/raw/Fake.csv")
+RAW_REAL_PATH = "data/raw/True.csv"
+RAW_FAKE_PATH = "data/raw/Fake.csv"
+PROCESSED_PATH = "data/processed/news_dataset.csv"
+STATS_PATH = "results/dataset_stats.json"
 
-print(f"Loaded Real articles: {len(real_news):,}")
-print(f"Loaded Fake articles: {len(fake_news):,}")
-
-# STEP 2: Assign target labels
-# 0 = Real News, 1 = Fake News
-real_news["label"] = 0
-fake_news["label"] = 1
-
-# STEP 3: Clean & Sanitize Text (Prevent Data Leakage)
-print("\nStep 2: Sanitizing text to remove publisher leakage and artifacts...")
+# Labels: 0 = Real News, 1 = Fake News
+REAL_LABEL = 0
+FAKE_LABEL = 1
 
 URL_RE = re.compile(r"https?://\S+|www\.\S+")
 TWITTER_MEDIA_RE = re.compile(r"pic\.twitter\.com/\S+", re.IGNORECASE)
-
 
 # Labels are matched without a leading \b: the HTML-stripping leaves credits glued
 # to the previous sentence, e.g. "...June 8, 2017Featured image via ...".
@@ -35,7 +37,7 @@ PHOTO_CREDIT_RE = re.compile(
     r"(?:(?:by|of|via)\s+)?[^!?]{0,120}?"
     r"(?:getty images|flickr|wikimedia commons|associated press|afp)\.?"
 )
-AGENCY_CREDIT_RE = re.compile(r"(?i)(?:(?<![A-Za-z])[A-Z][\w'’’.\-]*\s*/\s*)+getty images\.?")
+AGENCY_CREDIT_RE = re.compile(r"(?i)(?:(?<![A-Za-z])[A-Z][\w'’’. \-]*\s*/\s*)+getty images\.?")
 
 
 def strip_media_credits(text):
@@ -100,49 +102,100 @@ def clean_text(text):
     return re.sub(r"\s{2,}", " ", text).strip()
 
 
-for _frame in (real_news, fake_news):
-    _frame["title"] = _frame["title"].fillna("").apply(clean_text)
-    _frame["text"] = _frame["text"].fillna("").apply(clean_text)
-print("Sanitization completed!")
+def load_raw_news(true_path=RAW_REAL_PATH, fake_path=RAW_FAKE_PATH):
+    """Load both raw files and assign the target labels."""
+    real_news = pd.read_csv(true_path)
+    fake_news = pd.read_csv(fake_path)
+    real_news["label"] = REAL_LABEL
+    fake_news["label"] = FAKE_LABEL
+    return real_news, fake_news
 
-# STEP 4: Combine title and text into a unified content column
-print("\nStep 3: Combining title and text...")
 
-real_news["content"] = (real_news["title"] + " " + real_news["text"]).str.strip()
-fake_news["content"] = (fake_news["title"] + " " + fake_news["text"]).str.strip()
+def build_dataset(true_path=RAW_REAL_PATH, fake_path=RAW_FAKE_PATH):
+    """
+    Run the full cleaning pipeline.
 
-# Combine both datasets
-news_data = pd.concat([real_news, fake_news], ignore_index=True)
-initial_count = len(news_data)
-print(f"Total combined articles before deduplication: {initial_count:,}")
+    Returns:
+        (cleaned DataFrame, stats dict with the real row counts at each stage)
+    """
+    real_news, fake_news = load_raw_news(true_path, fake_path)
+    stats = {
+        "raw_real": int(len(real_news)),
+        "raw_fake": int(len(fake_news)),
+        "raw_total": int(len(real_news) + len(fake_news)),
+        "raw_missing_titles": int(
+            real_news["title"].isna().sum() + fake_news["title"].isna().sum()
+        ),
+        "raw_missing_texts": int(
+            real_news["text"].isna().sum() + fake_news["text"].isna().sum()
+        ),
+    }
 
-# STEP 5: Remove duplicates and empty articles
-print("\nStep 4: Checking and removing duplicates...")
-duplicate_count = news_data["content"].duplicated().sum()
-print(f"Duplicate articles found: {duplicate_count:,}")
+    # Sanitize text (prevents publisher/credit leakage) for both classes.
+    for frame in (real_news, fake_news):
+        frame["title"] = frame["title"].fillna("").apply(clean_text)
+        frame["text"] = frame["text"].fillna("").apply(clean_text)
 
-news_data = news_data.drop_duplicates(subset=["content"]).reset_index(drop=True)
-# Remove empty or trivially short articles (< 20 characters)
-news_data = news_data[news_data["content"].str.len() > 20].reset_index(drop=True)
+    # Combine title and text into a unified content column.
+    real_news["content"] = (real_news["title"] + " " + real_news["text"]).str.strip()
+    fake_news["content"] = (fake_news["title"] + " " + fake_news["text"]).str.strip()
 
-final_count = len(news_data)
-print(f"Articles retained after cleaning: {final_count:,} (Removed {initial_count - final_count:,})")
+    news_data = pd.concat([real_news, fake_news], ignore_index=True)
+    stats["combined_total"] = int(len(news_data))
 
-# STEP 6: Shuffle the dataset
-print("\nStep 5: Shuffling dataset...")
-news_data = news_data.sample(frac=1, random_state=42).reset_index(drop=True)
+    # Duplicates and empty/trivially short articles.
+    stats["duplicates_removed"] = int(news_data["content"].duplicated().sum())
+    news_data = news_data.drop_duplicates(subset=["content"]).reset_index(drop=True)
 
-# STEP 7: Summary and distribution
-print("\nCleaned Class Distribution:")
-distribution = news_data["label"].value_counts()
-print(f"  Real News (0): {distribution.get(0, 0):,} ({distribution.get(0, 0) / final_count * 100:.1f}%)")
-print(f"  Fake News (1): {distribution.get(1, 0):,} ({distribution.get(1, 0) / final_count * 100:.1f}%)")
+    too_short = news_data["content"].str.len() <= 20
+    stats["short_removed"] = int(too_short.sum())
+    news_data = news_data[~too_short].reset_index(drop=True)
 
-# STEP 8: Save the cleaned dataset
-print("\nStep 6: Saving cleaned dataset...")
-os.makedirs("data/processed", exist_ok=True)
-news_data.to_csv("data/processed/news_dataset.csv", index=False)
-print("Saved to data/processed/news_dataset.csv successfully!")
-print("==========================================")
-print("DATASET CLEANING & PREPARATION COMPLETE!")
-print("==========================================")
+    stats["cleaned_total"] = int(len(news_data))
+    stats["removed_total"] = int(stats["combined_total"] - stats["cleaned_total"])
+
+    # Shuffle with a fixed seed so the split is reproducible.
+    news_data = news_data.sample(frac=1, random_state=42).reset_index(drop=True)
+
+    stats["real_retained"] = int((news_data["label"] == REAL_LABEL).sum())
+    stats["fake_retained"] = int((news_data["label"] == FAKE_LABEL).sum())
+    stats["real_pct"] = round(stats["real_retained"] / stats["cleaned_total"] * 100, 2)
+    stats["fake_pct"] = round(stats["fake_retained"] / stats["cleaned_total"] * 100, 2)
+
+    return news_data, stats
+
+
+def main():
+    print("Step 1: Loading raw datasets...")
+    news_data, stats = build_dataset()
+
+    print(f"Loaded Real articles: {stats['raw_real']:,}")
+    print(f"Loaded Fake articles: {stats['raw_fake']:,}")
+    print(f"Total combined articles before deduplication: {stats['raw_total']:,}")
+    print(f"Duplicate articles found: {stats['duplicates_removed']:,}")
+    print(
+        f"Articles retained after cleaning: {stats['cleaned_total']:,} "
+        f"(Removed {stats['removed_total']:,})"
+    )
+
+    print("\nCleaned Class Distribution:")
+    print(f"  Real News (0): {stats['real_retained']:,} ({stats['real_pct']:.1f}%)")
+    print(f"  Fake News (1): {stats['fake_retained']:,} ({stats['fake_pct']:.1f}%)")
+
+    print("\nSaving cleaned dataset...")
+    os.makedirs(os.path.dirname(PROCESSED_PATH), exist_ok=True)
+    news_data.to_csv(PROCESSED_PATH, index=False)
+    print(f"Saved to {PROCESSED_PATH} successfully!")
+
+    os.makedirs(os.path.dirname(STATS_PATH), exist_ok=True)
+    with open(STATS_PATH, "w", encoding="utf-8") as f:
+        json.dump(stats, f, indent=2)
+    print(f"Dataset statistics saved to: {STATS_PATH}")
+
+    print("==========================================")
+    print("DATASET CLEANING & PREPARATION COMPLETE!")
+    print("==========================================")
+
+
+if __name__ == "__main__":
+    main()

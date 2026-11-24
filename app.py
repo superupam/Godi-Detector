@@ -100,8 +100,9 @@ with st.sidebar:
     _acc = _meta.get("accuracy")
     _size_str = f"{_size:,} sanitized & deduplicated articles" if isinstance(_size, int) else "unknown (run `train_model.py`)"
     _acc_str = f"{_acc:.2f}%" if isinstance(_acc, (int, float)) else "unknown"
+    _algo = _meta.get("algorithm") or "Logistic Regression"
     st.markdown(f"""
-    * **Engine 1:** TF-IDF + Logistic Regression (Style & Tone)
+    * **Engine 1:** TF-IDF + {_algo} (Style & Tone)
     * **Engine 2:** Real-Time Knowledge Retrieval (Wikipedia & News RSS)
     * **Dataset:** {_size_str}
     * **Model Accuracy:** {_acc_str}

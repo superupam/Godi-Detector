@@ -1,0 +1,16 @@
+{
+  "raw_real": 21417,
+  "raw_fake": 23481,
+  "raw_total": 44898,
+  "raw_missing_titles": 0,
+  "raw_missing_texts": 0,
+  "combined_total": 44898,
+  "duplicates_removed": 5802,
+  "short_removed": 1,
+  "cleaned_total": 39095,
+  "removed_total": 5803,
+  "real_retained": 21196,
+  "fake_retained": 17899,
+  "real_pct": 54.22,
+  "fake_pct": 45.78
+}

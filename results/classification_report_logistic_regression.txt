@@ -1,0 +1,16 @@
+Model: Logistic Regression
+Accuracy: 97.84%
+Train time: 0.25s | Predict time: 0.0s
+
+              precision    recall  f1-score   support
+
+   Real News     0.9750    0.9854    0.9802      4239
+   Fake News     0.9825    0.9701    0.9762      3580
+
+    accuracy                         0.9784      7819
+   macro avg     0.9787    0.9777    0.9782      7819
+weighted avg     0.9784    0.9784    0.9784      7819
+
+Confusion matrix (rows = true, cols = predicted):
+[[4177   62]
+ [ 107 3473]]
