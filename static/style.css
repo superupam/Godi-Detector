@@ -367,6 +367,15 @@ textarea#news-input:focus {
     color: var(--text-muted);
 }
 
+/* Narrow screens: the character count and the toggle label would otherwise be
+   squeezed into two cramped lines next to each other. */
+@media (max-width: 560px) {
+    .input-meta {
+        flex-wrap: wrap;
+        row-gap: 0.5rem;
+    }
+}
+
 /* Toggle Switch */
 .toggle-container {
     display: flex;
@@ -760,6 +769,18 @@ textarea#news-input:focus {
     color: var(--text-muted);
     font-size: 0.88rem;
     border-top: 1px solid var(--border-subtle);
+}
+
+.footer-disclaimer {
+    max-width: 720px;
+    margin: 0.9rem auto 0;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: #92400E;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: 8px;
 }
 
 .footer-sub {

@@ -20,7 +20,7 @@ st.set_page_config(
     page_title="Godi Detector - AI News Verification",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
 # Custom Styling
@@ -69,6 +69,16 @@ st.markdown("""
     }
     .badge-real { background-color: #D1FAE5; color: #065F46; }
     .badge-fake { background-color: #FEE2E2; color: #991B1B; }
+    .disclaimer {
+        font-size: 0.85rem;
+        line-height: 1.5;
+        color: #92400E;
+        background-color: #FFFBEB;
+        border: 1px solid #FDE68A;
+        border-radius: 8px;
+        padding: 0.6rem 0.9rem;
+        margin-bottom: 1.2rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -113,6 +123,12 @@ with st.sidebar:
 # --- Main Application Header ---
 st.markdown('<div class="main-header">🛡️ Godi Detector</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">"Don\'t just consume information. Verify it." &mdash; Dual-Engine Misinformation Detection</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="disclaimer">⚠️ <strong>Decision support only.</strong> This is an automated '
+    'style and evidence check, not a substitute for professional fact-checking. Verify '
+    'consequential claims against primary sources.</div>',
+    unsafe_allow_html=True,
+)
 
 model = load_model()
 if model is None:
@@ -121,28 +137,33 @@ if model is None:
 
 # --- Sample Buttons for Easy Demo ---
 st.markdown("**Try sample headlines:**")
-col_s1, col_s2, col_s3, col_s4 = st.columns(4)
 
-default_text = ""
 if "input_text" not in st.session_state:
     st.session_state.input_text = ""
 
-if col_s1.button("📌 Real Political News"):
-    st.session_state.input_text = "The Senate on Wednesday passed a bipartisan $1.2 trillion infrastructure bill with overwhelming support from both parties."
+SAMPLE_HEADLINES = {
+    "📌 Real Political News": "The Senate on Wednesday passed a bipartisan $1.2 trillion infrastructure bill with overwhelming support from both parties.",
+    "🚨 Sensational Clickbait": "BREAKING: Shocking video exposes secret plot by corrupt politicians to rig the election! WATCH HERE!",
+    "⚽ Real Sports Event": "Lionel Messi won the FIFA World Cup in December, 2022",
+    "🪐 Science Discovery": "NASA rover Perseverance landed on Mars in February 2021 to search for ancient microbial life.",
+}
 
-if col_s2.button("🚨 Sensational Clickbait"):
-    st.session_state.input_text = "BREAKING: Shocking video exposes secret plot by corrupt politicians to rig the election! WATCH HERE!"
 
-if col_s3.button("⚽ Real Sports Event"):
-    st.session_state.input_text = "Lionel Messi won the FIFA World Cup in December, 2022"
+def _fill_sample(text: str) -> None:
+    """on_click callback: runs before the rerun, so the text area receives it."""
+    st.session_state.input_text = text
 
-if col_s4.button("🪐 Science Discovery"):
-    st.session_state.input_text = "NASA rover Perseverance landed on Mars in February 2021 to search for ancient microbial life."
+
+for _col, (_label, _sample) in zip(st.columns(4), SAMPLE_HEADLINES.items()):
+    _col.button(_label, on_click=_fill_sample, args=(_sample,), use_container_width=True)
 
 # --- Input Area ---
+# key="input_text" binds this widget to session state so the sample buttons'
+# on_click callbacks can fill it. Passing value= instead only applied on the
+# first render, so the sample buttons silently did nothing.
 user_text = st.text_area(
     "Enter a news headline, statement, or article excerpt to verify:",
-    value=st.session_state.input_text,
+    key="input_text",
     height=120,
     placeholder="Type or paste any news text here..."
 )

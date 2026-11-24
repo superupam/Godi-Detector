@@ -74,6 +74,8 @@ document.addEventListener("DOMContentLoaded", () => {
         tabUrl.classList.remove("active");
         viewText.style.display = "block";
         viewUrl.style.display = "none";
+        // The counter tracks the textarea, so hide it in URL mode.
+        charCount.style.visibility = "visible";
         newsInput.focus();
     });
 
@@ -83,6 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tabText.classList.remove("active");
         viewUrl.style.display = "block";
         viewText.style.display = "none";
+        charCount.style.visibility = "hidden";
         urlInput.focus();
     });
 

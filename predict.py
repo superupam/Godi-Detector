@@ -82,7 +82,9 @@ def predict_news(model, text, check_facts=True):
         print(f"  Evidence Snippet    : \"{fact_result['top_snippet'][:200]}...\"")
         if fact_result['top_url']:
             print(f"  Source URL          : {fact_result['top_url']}")
-    print("=" * 65 + "\n")
+    print("=" * 65)
+    print("NOTE: Automated decision support, not professional fact-checking.")
+    print("Verify consequential claims against primary sources.\n")
 
 
 def run_interactive_mode(model):
